@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uncommon Data - Home</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center; #this centers things
+        }
+        .bio {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .user-info {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #fff3cd;
+            border-radius: 5px;
+        }
+        .username {
+            font-weight: bold;
+            background-color: #ffd700;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+        .time-display {
+            margin: 20px 0;
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="bio">
+        <h1>About Our Team</h1>
+        <p>
+            Welcome to Uncommon Data! We are a team of passionate developers working on 
+            creating an innovative data curation platform. Our team consists of dedicated 
+            students, (FROM WHAT I UNDERSTAND THIS IS A SOLO PROJECT SO I WILL GIVE RANDOM NAMES), including Sneha, Bob, Charlotte and Ray, who are learning full-stack development with Django. We're building 
+            this platform to help users collect, curate, and manage data efficiently.
+        </p>
+        <p>
+            This project combines modern web technologies with robust backend systems to 
+            deliver a seamless user experience for both data curators and harvesters.
+        </p>
+    </div>
+
+    {% if user.is_authenticated %}
+        <div class="user-info">
+            <p>Welcome back, <span class="username">{{ user.username }}</span>!</p> #class tells html what css styling to use im guessing - defining the style of the text inside
+            <p>You are currently logged in.</p> 
+        </div>
+    {% else %}
+        <div class="user-info">
+            <p>You are not currently logged in.</p>
+            <p><a href="/accounts/login/">Login here</a></p>
+        </div>
+    {% endif %}
+
+    <div class="time-display">
+        <p><strong>Current Time:</strong> {{ current_time }}</p> #everything inside of double curly brackets are variables i should be making somewhere else
+    </div>
+
+    <div>
+        <h2>Quick Links</h2>
+        <p><a href="/app/new/">Create New Account</a></p>
+    </div>
+</body>
+</html>

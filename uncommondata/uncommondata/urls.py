@@ -23,4 +23,5 @@ urlpatterns = [
     path('dummypage', views.dummypage, name="index"),
     path('app/time', views.time),
     path('app/sum', views.sum),
+    path('index.html', views.index)
 ]
