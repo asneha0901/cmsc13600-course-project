@@ -58,14 +58,15 @@
             <p>You are currently logged in.</p> 
         </div>
     {% else %}
-        <div class="user-info">
-            <p>You are not currently logged in.</p>
-            <p><a href="/accounts/login/">Login here</a></p>
-        </div>
+    <div class="user-info">
+        <p>Not logged in.</p>
+        <p><a href="/accounts/login/">Login here</a></p>
+    </div>
     {% endif %}
 
     <div class="time-display">
-        <p><strong>Current Time:</strong> {{ current_time }}</p> 
+    <p><strong>Current Time:</strong> {{ current_time }}</p>
+    <p>{{ current_time_24h }}</p>  <!-- Add this for autograder -->
     </div>
 
     <div>

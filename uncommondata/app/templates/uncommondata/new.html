@@ -118,12 +118,17 @@
             </div>
             
             <div class="form-group">
-                <label for="is_curator">Account Type:</label>
-                <select id="is_curator" name="is_curator" required>
-                    <option value="">-- Select Account Type --</option>
-                    <option value="0">Harvester (Collect Data)</option>
-                    <option value="1">Curator (Manage Data)</option>
-                </select>
+                <label>Account Type:</label>
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" id="harvester" name="is_curator" value="0" required>
+                        <label for="harvester" style="display: inline; font-weight: normal;">Harvester (Collect Data)</label>
+                    </div>
+                <div class="radio-option">
+                        <input type="radio" id="curator" name="is_curator" value="1">
+                        <label for="curator" style="display: inline; font-weight: normal;">Curator (Manage Data)</label>
+                    </div>
+                </div>
             </div>
             
             <button type="submit">Sign Up</button>
