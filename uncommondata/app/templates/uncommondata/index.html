@@ -54,7 +54,7 @@
 
     {% if user.is_authenticated %}
         <div class="user-info">
-            <p>Welcome back, <span class="username">{{ user.username }}</span>!</p> #class tells html what css styling to use im guessing - defining the style of the text inside
+            <p>Welcome back, <span class="username">{{ user.username }}</span>!</p> 
             <p>You are currently logged in.</p> 
         </div>
     {% else %}
@@ -65,7 +65,7 @@
     {% endif %}
 
     <div class="time-display">
-        <p><strong>Current Time:</strong> {{ current_time }}</p> #everything inside of double curly brackets are variables i should be making somewhere else
+        <p><strong>Current Time:</strong> {{ current_time }}</p> 
     </div>
 
     <div>

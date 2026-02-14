@@ -3,16 +3,23 @@ from django.contrib.auth.models import User
 
 # Create your models here.
 
-class UserType(models.Model):
-    ROLE_CHOICES = [
-        ('harvester', 'Harvester'),
-        ('curator', 'Curator'),
-    ]
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
-
+class UserProfile(models.Model):
+    """
+    Extension of the built-in User model to add custom fields.
+    This uses a OneToOne relationship with the User model.
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    is_curator = models.BooleanField(
+        default=False,
+        help_text="Designates whether this user is a curator or a harvester"
+    )
+    
     def __str__(self):
-        return f"{self.user.username} ({self.role})"
+        return f"{self.user.username} - {'Curator' if self.is_curator else 'Harvester'}"
+    
+    class Meta:
+        verbose_name = "User Profile"
+        verbose_name_plural = "User Profiles"
 
 #The UserType table will have just two options: Harvester and Curator. 
 #The User is formed with django's automatic user package and if a user is deleted, then the type is also deleted. The def(str) is just for when we want to see it
