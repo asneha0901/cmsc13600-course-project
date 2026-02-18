@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uploads - Uncommon Data</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .upload-form {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"],
+        input[type="url"],
+        input[type="file"],
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .message {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload Files</h1>
+    
+    <p>Welcome, <strong>{{ user.username }}</strong>! | <a href="/">Home</a></p>
+    
+    <div id="message" class="message"></div>
+    
+    <div class="upload-form">
+        <h2>Submit New Upload</h2>
+        <form id="uploadForm" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="institution">Institution Name:</label>
+                <input type="text" id="institution" name="institution" required 
+                       placeholder="Enter institution name or select existing">
+                <!-- Optional: Show existing institutions as datalist -->
+                {% if institutions %}
+                <datalist id="institution-list">
+                    {% for inst in institutions %}
+                    <option value="{{ inst.name }}">
+                    {% endfor %}
+                </datalist>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="year">Reporting Year:</label>
+                <input type="text" id="year" name="year" placeholder="2024-2025" required>
+                <!-- Optional: Show existing years as datalist -->
+                {% if years %}
+                <datalist id="year-list">
+                    {% for yr in years %}
+                    <option value="{{ yr.year }}">
+                    {% endfor %}
+                </datalist>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="url">URL (optional):</label>
+                <input type="url" id="url" name="url">
+            </div>
+            
+            <div class="form-group">
+                <label for="file">File (optional):</label>
+                <input type="file" id="file" name="file">
+            </div>
+            
+            <button type="submit">Upload</button>
+        </form>
+    </div>
+    
+    <h2>Your Uploads</h2>
+    
+    {% if uploads %}
+    <table>
+        <thead>
+            <tr>
+                <th>Institution</th>
+                <th>Year</th>
+                <th>URL</th>
+                <th>File</th>
+                <th>Uploaded</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for upload in uploads %}
+            <tr>
+                <td>
+                    {% if upload.institution.name %}
+                        {{ upload.institution.name }}
+                    {% else %}
+                        {{ upload.institution }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if upload.reporting_year.year %}
+                        {{ upload.reporting_year.year }}
+                    {% else %}
+                        {{ upload.reporting_year }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if upload.url %}
+                        <a href="{{ upload.url }}" target="_blank">Link</a>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if upload.file %}
+                        {{ upload.file.name }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>{{ upload.uploaded_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No uploads yet.</p>
+    {% endif %}
+    
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const messageDiv = document.getElementById('message');
+            messageDiv.style.display = 'none';
+            
+            const formData = new FormData(this);
+            
+            try {
+                const response = await fetch('/app/api/upload/', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                    }
+                });
+                
+                if (response.status === 201) {
+                    messageDiv.textContent = 'Upload successful! Refreshing...';
+                    messageDiv.className = 'message success';
+                    messageDiv.style.display = 'block';
+                    
+                    // Refresh page after 1 second
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    const text = await response.text();
+                    messageDiv.textContent = 'Error: ' + text;
+                    messageDiv.className = 'message error';
+                    messageDiv.style.display = 'block';
+                }
+            } catch (error) {
+                messageDiv.textContent = 'Network error: ' + error.message;
+                messageDiv.className = 'message error';
+                messageDiv.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

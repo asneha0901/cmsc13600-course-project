@@ -41,6 +41,8 @@ class Upload(models.Model):
     institution = models.ForeignKey(Institution, on_delete=models.CASCADE)
     reporting_year = models.ForeignKey(ReportingYear, on_delete=models.CASCADE)
     file = models.FileField(upload_to='uploads/')
+    url = models.URLField(max_length=500, null=True, blank=True)
+    file = models.FileField(upload_to='uploads/', null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
 
