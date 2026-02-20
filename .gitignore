@@ -6,3 +6,5 @@ __pycache__
 .pycache
 *.pyc
 venv
+requirements.txt
+debug.py

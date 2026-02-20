@@ -115,6 +115,8 @@ def uploads(request):
     - Returns 403 if user is a curator (curators can't upload)
     - Returns 200 with uploads page for harvesters
     """
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
     # Check if user is a curator
     try:
         if request.user.profile.is_curator:
@@ -192,6 +194,8 @@ def dump_uploads(request):
     
     NOTE: Adjusted to handle your ForeignKey relationships
     """
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
     try:
         # Check if user is curator
         is_curator = request.user.profile.is_curator
@@ -285,57 +289,22 @@ Who's there?
 Interrupting cow.
 Interrupting cow wh--
 MOOOOO!"""
-    
-    # Try OpenAI first
+        
+
     try:
-        from openai import OpenAI
-        
-        api_key = os.environ.get('OPENAI_API_KEY')
+        from google import genai
+        api_key = os.environ.get('GEMINI_API_KEY')
         if not api_key:
-            print("No OpenAI API key found")
+            print("No Gemini API key found")
             raise ValueError("No API key")
-        
-        client = OpenAI(api_key=api_key, timeout=30)
-        
-        prompt = f"Tell me a knock-knock joke about {topic}. Just give me the joke, no extra explanation."
-        
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a comedian who tells knock-knock jokes."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=150,
-            timeout=30
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model="models/gemini-1.5-flash",
+            contents=topic
         )
-        
-        joke = response.choices[0].message.content.strip()
-        return joke
-        
-    except Exception as e:
-        print(f"OpenAI failed: {str(e)}")
-        
-        # Try Gemini as backup
-        try:
-            import google.generativeai as genai
+        return response.text.strip()
+
             
-            api_key = os.environ.get('GEMINI_API_KEY')
-            if not api_key:
-                print("No Gemini API key found")
-                raise ValueError("No API key")
-            
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-pro')
-            
-            prompt = f"Tell me a knock-knock joke about {topic}. Just give me the joke, no extra explanation."
-            
-            response = model.generate_content(
-                prompt,
-                request_options={'timeout': 30}
-            )
-            
-            return response.text.strip()
-            
-        except Exception as e2:
-            print(f"Gemini also failed: {str(e2)}")
-            return FALLBACK_JOKE
+    except Exception as e2:
+        print(f"Gemini also failed: {str(e2)}")
+        return FALLBACK_JOKE
