@@ -299,7 +299,7 @@ MOOOOO!"""
             raise ValueError("No API key")
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
-            model="models/gemini-1.5-flash",
+            model="models/gemini-2.5-flash",
             contents=topic
         )
         return response.text.strip()
