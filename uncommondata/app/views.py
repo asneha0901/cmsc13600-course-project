@@ -311,7 +311,7 @@ MOOOOO!"""
         if not api_key:
             print("No Gemini API key found")
             raise ValueError("No API key")
-        prompt = f"Tell me a knock-knock joke about {topic}. Just give me the joke, no extra explanation."
+        prompt = f"Tell me a knock-knock joke about {topic}. Just give me the joke, no extra explanation making sure to use the exact phrase with no commas Knock knock"
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
             model="models/gemini-2.5-flash",
