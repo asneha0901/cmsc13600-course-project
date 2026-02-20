@@ -8,6 +8,20 @@ from decimal import Decimal
 from app.models import UserProfile
 # Add these two new functions to your views.py:
 
+from functools import wraps
+from django.http import HttpResponse
+
+def api_login_required(view_func):
+    """
+    Custom decorator for API endpoints that returns 401 instead of redirecting.
+    """
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return HttpResponse("Unauthorized", status=401)
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
 def new(request):
     """
     Display the signup form page.
@@ -107,7 +121,7 @@ from django.http import JsonResponse, HttpResponseForbidden
 from app.models import UserProfile, Upload, Institution, ReportingYear
 
 
-@login_required(login_url='/accounts/login/')
+@api_login_required
 def uploads(request):
     """
     Display the uploads page with upload form.
@@ -141,7 +155,7 @@ def uploads(request):
 
 
 @require_http_methods(["POST"])
-@login_required(login_url='/accounts/login/')
+@api_login_required
 def upload(request):
     """
     API endpoint to handle file uploads.
@@ -183,7 +197,7 @@ def upload(request):
         return HttpResponse(f"Error: {str(e)}", status=500)
 
 
-@login_required(login_url='/accounts/login/')
+@api_login_required
 def dump_uploads(request):
     """
     Return JSON of uploads.
@@ -239,7 +253,7 @@ def dump_uploads(request):
         traceback.print_exc()
         return HttpResponse(f"Error: {str(e)}", status=500)
 
-
+@api_login_required
 def dump_data(request):
     """
     Return data for curators only.
@@ -297,10 +311,11 @@ MOOOOO!"""
         if not api_key:
             print("No Gemini API key found")
             raise ValueError("No API key")
+        prompt = f"Tell me a knock-knock joke about {topic}. Just give me the joke, no extra explanation."
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
             model="models/gemini-2.5-flash",
-            contents=topic
+            contents=prompt
         )
         return response.text.strip()
 
