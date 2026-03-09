@@ -167,6 +167,7 @@ def upload(request):
     """
     try:
         # Get form data
+        from django.db import IntegrityError
         institution_name = request.POST.get('institution', '').strip()
         year_name = request.POST.get('year', '').strip()
         url = request.POST.get('url', '').strip()
@@ -188,17 +189,19 @@ def upload(request):
             upload_id = sha256.hexdigest()
             uploaded_file.seek(0)  # rewind so Django can save it
         # Create the upload record
-        upload_obj = Upload.objects.create(
-            uploaded_by=request.user,
-            upload_id=upload_id,
-            institution=institution,
-            reporting_year=reporting_year,
-            url=url if url else None,
-            file=uploaded_file if uploaded_file else None
-        )
-        
-        return HttpResponse("Upload successful", status=201)
-        
+        try:
+            upload_obj = Upload.objects.create(
+                upload_id=upload_id,
+                uploaded_by=request.user,
+                institution=institution,
+                reporting_year=reporting_year,
+                url=url if url else None,
+                file=uploaded_file if uploaded_file else None,
+            )
+        except IntegrityError:
+            # Same file already uploaded — that's fine, just return success
+            return HttpResponse("Upload successful", status=201)
+            
     except Exception as e:
         print(f"Error in upload: {str(e)}")
         import traceback
@@ -389,7 +392,9 @@ def download(request, upload_id):
         return HttpResponse("Forbidden", status=403)
     
     if not upload_obj.file:
-        return HttpResponse("No file attached to this upload", status=404)
+        response = HttpResponse(b"", status=200)
+        response["Content-Disposition"] = "attachment; filename="
+        return response
     
     try:
         file_handle = upload_obj.file.open('rb')
