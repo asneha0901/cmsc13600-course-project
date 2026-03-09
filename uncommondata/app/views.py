@@ -497,9 +497,8 @@ Fields:
 Return ONLY valid JSON, no markdown, no explanation.
 
 CDS text:
-{pdf_text[:12000]}
+{pdf_text}
 """
-
     data = {}
     try:
         from google import genai
@@ -527,6 +526,5 @@ CDS text:
                 validated[field] = int(val)
             except (ValueError, TypeError):
                 validated[field] = None
-
     return validated
 
