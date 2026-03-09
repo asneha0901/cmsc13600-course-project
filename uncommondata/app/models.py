@@ -37,12 +37,12 @@ class ReportingYear(models.Model):
         return self.year
     
 class Upload(models.Model):
+    upload_id = models.CharField(max_length=64, unique=True)
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE) 
     institution = models.ForeignKey(Institution, on_delete=models.CASCADE)
     reporting_year = models.ForeignKey(ReportingYear, on_delete=models.CASCADE)
     file = models.FileField(upload_to='uploads/')
     url = models.URLField(max_length=500, null=True, blank=True)
-    file = models.FileField(upload_to='uploads/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
 

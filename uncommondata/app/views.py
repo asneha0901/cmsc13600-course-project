@@ -178,10 +178,18 @@ def upload(request):
         # Get or create Institution and ReportingYear objects
         institution, _ = Institution.objects.get_or_create(name=institution_name)
         reporting_year, _ = ReportingYear.objects.get_or_create(year=year_name)
-        
+        import hashlib
+        upload_id = None
+        if uploaded_file:
+            sha256 = hashlib.sha256()
+            for chunk in uploaded_file.chunks():
+                sha256.update(chunk)
+            upload_id = sha256.hexdigest()
+            uploaded_file.seek(0)  # rewind so Django can save it
         # Create the upload record
         upload_obj = Upload.objects.create(
             uploaded_by=request.user,
+            upload_id=upload_id,
             institution=institution,
             reporting_year=reporting_year,
             url=url if url else None,
@@ -235,7 +243,8 @@ def dump_uploads(request):
             else:
                 year_value = str(upload.reporting_year)
             
-            result[str(upload.id)] = {
+            result[str(upload.upload_id)] = {
+                'upload_id': upload.upload_id,
                 'user': upload.uploaded_by.username,
                 'institution': institution_name,
                 'year': year_value,
@@ -323,3 +332,47 @@ MOOOOO!"""
     except Exception as e2:
         print(f"Gemini also failed: {str(e2)}")
         return FALLBACK_JOKE
+
+@api_login_required
+def show_uploads(request):
+    """
+    HTML view: list all uploads accessible to the current user,
+    with links to /app/api/download/{ID} and /app/api/process/{ID}.
+    Curators see all uploads; harvesters see only their own.
+    """
+    try:
+        is_curator = request.user.profile.is_curator
+    except UserProfile.DoesNotExist:
+        return HttpResponse("User profile not found", status=500)
+
+    if is_curator:
+        user_uploads = Upload.objects.all().select_related('uploaded_by', 'institution', 'reporting_year')
+    else:
+        user_uploads = Upload.objects.filter(uploaded_by=request.user).select_related('institution', 'reporting_year')
+
+    rows = []
+    for u in user_uploads:
+        uid = u.upload_id or str(u.id)
+        rows.append(
+            f"<tr>"
+            f"<td>{u.uploaded_by.username}</td>"
+            f"<td>{u.institution.name}</td>"
+            f"<td>{u.reporting_year.year}</td>"
+            f"<td>{uid}</td>"
+            f"<td><a href='/app/api/download/{uid}'>Download</a></td>"
+            f"<td><a href='/app/api/process/{uid}'>Process</a></td>"
+            f"</tr>"
+        )
+
+    html = (
+        "<html><body>"
+        "<h1>Uploads</h1>"
+        "<table border='1'>"
+        "<tr><th>User</th><th>Institution</th><th>Year</th><th>ID</th><th>Download</th><th>Process</th></tr>"
+        + "".join(rows)
+        + "</table></body></html>"
+    )
+    return HttpResponse(html, content_type="text/html", status=200)
+
+
+    
