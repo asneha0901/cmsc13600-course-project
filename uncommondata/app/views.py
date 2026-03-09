@@ -7,6 +7,8 @@ from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from app.models import UserProfile
 import os
+from django.db import IntegrityError
+
 # Add these two new functions to your views.py:
 
 from functools import wraps
@@ -165,7 +167,6 @@ def upload(request):
     
     NOTE: Adjusted for your Institution/ReportingYear models
     """
-    from django.db import IntegrityError
 
     try:
         # Get form data
@@ -201,6 +202,7 @@ def upload(request):
                 url=url if url else None,
                 file=uploaded_file if uploaded_file else None,
             )
+            return HttpResponse("Upload successful", status=201)
         except IntegrityError:
             # Same file already uploaded — that's fine, just return success
             return HttpResponse("Upload successful", status=201)
