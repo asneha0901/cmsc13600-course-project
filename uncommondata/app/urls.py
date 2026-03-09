@@ -18,4 +18,7 @@ urlpatterns = [
     path('app/api/dump-uploads/', views.dump_uploads, name='dump_uploads'),
     path('app/api/dump-data/', views.dump_data, name='dump_data'),
     path('app/api/knockknock/', views.knockknock, name='knockknock'),
+    path('app/show-uploads/', views.show_uploads, name='show_uploads'),
+    path('app/api/download/<str:upload_id>', views.download, name='api_download'),
+    path('app/api/process/<str:upload_id>', views.process, name='api_process'),
 ]

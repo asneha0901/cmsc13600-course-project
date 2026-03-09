@@ -1,11 +1,12 @@
 from django.shortcuts import render, redirect
-from django.http import HttpResponse, JsonResponse, HttpResponseNotAllowed
+from django.http import HttpResponse, JsonResponse, HttpResponseNotAllowed, FileResponse
 from django.contrib.auth.models import User 
 from django.contrib.auth import login
 from django.views.decorators.http import require_http_methods
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from app.models import UserProfile
+import os
 # Add these two new functions to your views.py:
 
 from functools import wraps
@@ -340,10 +341,10 @@ def show_uploads(request):
     with links to /app/api/download/{ID} and /app/api/process/{ID}.
     Curators see all uploads; harvesters see only their own.
     """
-    try:
-        is_curator = request.user.profile.is_curator
-    except UserProfile.DoesNotExist:
-        return HttpResponse("User profile not found", status=500)
+    if not request.user.is_authenticated:
+        return HttpResponse("Unauthorized", status=401)
+    
+    is_curator = request.user.profile.is_curator
 
     if is_curator:
         user_uploads = Upload.objects.all().select_related('uploaded_by', 'institution', 'reporting_year')
@@ -374,5 +375,158 @@ def show_uploads(request):
     )
     return HttpResponse(html, content_type="text/html", status=200)
 
-
+@api_login_required
+def download(request, upload_id):
+    if not request.user.is_authenticated:
+        return HttpResponse("Unauthorized", status=401)
+    try:
+        upload_obj = Upload.objects.get(upload_id=upload_id)
+    except Upload.DoesNotExist:
+        return HttpResponse("Upload not found", status=404)
     
+    is_curator = request.user.profile.is_curator
+    if not is_curator and upload_obj.uploaded_by != request.user:
+        return HttpResponse("Forbidden", status=403)
+    
+    if not upload_obj.file:
+        return HttpResponse("No file attached to this upload", status=404)
+    
+    try:
+        file_handle = upload_obj.file.open('rb')
+        filename = os.path.basename(upload_obj.file.name)
+        return FileResponse(file_handle, as_attachment=True, filename=filename)
+    except Exception as e:
+        return HttpResponse(f"Error serving file: {str(e)}", status=500)
+
+@api_login_required
+def process(request, upload_id):
+    import os
+    import subprocess
+    import tempfile
+    import shutil
+
+    if not request.user.is_authenticated:
+        return HttpResponse("Unauthorized", status=401)
+    
+    try:
+        upload_obj = Upload.objects.get(upload_id=upload_id)
+    except Upload.DoesNotExist:
+        return HttpResponse("Upload not found", status=404)
+    is_curator = request.user.profile.is_curator
+    if not is_curator and upload_obj.uploaded_by != request.user:
+        return HttpResponse("Forbidden", status=403)
+    
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            src_path = upload_obj.file.path
+            tmp_pdf = os.path.join(tmpdir, "input.pdf")
+            shutil.copy2(src_path, tmp_pdf)
+            txt_path = tmp_pdf + ".txt"
+
+            subprocess.run(
+                ["pdftotext", "-layout", tmp_pdf, txt_path],
+                check=True, capture_output=True
+            )
+
+            with open(txt_path, 'r', errors='replace') as f:
+                pdf_text = f.read()
+
+        extracted = extract_cds_fields(pdf_text)
+        return JsonResponse(extracted, status=200)
+
+    except subprocess.CalledProcessError as e:
+        return HttpResponse(f"pdftotext failed: {e.returncode}", status=500)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return HttpResponse(f"Error processing file: {str(e)}", status=500)
+
+def extract_cds_fields(pdf_text):
+    """
+    Use an LLM to extract the 18 target CDS fields from PDF text.
+    Returns a dict with integer values or null.
+    """
+    import os
+    import json
+
+    FIELDS = [
+        "tuition_undergraduates",
+        "required_fees_undergraduates",
+        "food_and_housing_on_campus_undergraduates",
+        "housing_only_on_campus_undergraduates",
+        "food_only_on_campus_meal_plan_undergraduates",
+        "degree_seeking_undergraduate_students",
+        "applied_for_need_based_financial_aid",
+        "determined_to_have_financial_need",
+        "awarded_any_financial_aid",
+        "average_financial_aid_package",
+        "men_applied",
+        "women_applied",
+        "another_gender_applied",
+        "unknown_gender_applied",
+        "men_admitted",
+        "women_admitted",
+        "another_gender_admitted",
+        "unknown_gender_admitted",
+    ]
+
+    prompt = f"""You are extracting data from a Common Data Set (CDS) PDF.
+Extract the following fields and return ONLY a JSON object with these exact keys.
+Use integer values (no commas, no dollar signs), or null if not present.
+
+Fields:
+- tuition_undergraduates              (G1: Tuition, Undergraduates)
+- required_fees_undergraduates        (G1: Required Fees, Undergraduates)
+- food_and_housing_on_campus_undergraduates  (G1: Food and housing on-campus)
+- housing_only_on_campus_undergraduates      (G1: Housing only on-campus)
+- food_only_on_campus_meal_plan_undergraduates (G1: Food only / meal plan)
+- degree_seeking_undergraduate_students      (H2 Line A)
+- applied_for_need_based_financial_aid       (H2 Line B)
+- determined_to_have_financial_need          (H2 Line C)
+- awarded_any_financial_aid                  (H2 Line D)
+- average_financial_aid_package              (H2 Line J)
+- men_applied        (C1: first-time first-year men applied)
+- women_applied      (C1: first-time first-year women applied)
+- another_gender_applied   (C1: another gender applied)
+- unknown_gender_applied   (C1: unknown gender applied)
+- men_admitted       (C1: first-time first-year men admitted)
+- women_admitted     (C1: first-time first-year women admitted)
+- another_gender_admitted  (C1: another gender admitted)
+- unknown_gender_admitted  (C1: unknown gender admitted)
+
+Return ONLY valid JSON, no markdown, no explanation.
+
+CDS text:
+{pdf_text[:12000]}
+"""
+
+    data = {}
+    try:
+        from google import genai
+        api_key = os.environ.get('GEMINI_API_KEY')
+        if not api_key:
+            raise ValueError("No GEMINI_API_KEY set")
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model="models/gemini-2.5-flash",
+            contents=prompt
+        )
+        raw = response.text.strip().replace("```json", "").replace("```", "").strip()
+        data = json.loads(raw)
+    except Exception as e:
+        print(f"LLM extraction failed: {e}")
+
+    # Validate: coerce each field to int or None
+    validated = {}
+    for field in FIELDS:
+        val = data.get(field)
+        if val is None:
+            validated[field] = None
+        else:
+            try:
+                validated[field] = int(val)
+            except (ValueError, TypeError):
+                validated[field] = None
+
+    return validated
+
