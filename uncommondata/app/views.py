@@ -165,9 +165,10 @@ def upload(request):
     
     NOTE: Adjusted for your Institution/ReportingYear models
     """
+    from django.db import IntegrityError
+
     try:
         # Get form data
-        from django.db import IntegrityError
         institution_name = request.POST.get('institution', '').strip()
         year_name = request.POST.get('year', '').strip()
         url = request.POST.get('url', '').strip()
@@ -177,9 +178,7 @@ def upload(request):
         if not institution_name or not year_name:
             return HttpResponse("Missing required fields: institution and year", status=400)
         
-        # Get or create Institution and ReportingYear objects
-        institution, _ = Institution.objects.get_or_create(name=institution_name)
-        reporting_year, _ = ReportingYear.objects.get_or_create(year=year_name)
+ 
         import hashlib
         upload_id = None
         if uploaded_file:
@@ -188,6 +187,10 @@ def upload(request):
                 sha256.update(chunk)
             upload_id = sha256.hexdigest()
             uploaded_file.seek(0)  # rewind so Django can save it
+        
+               # Get or create Institution and ReportingYear objects
+        institution, _ = Institution.objects.get_or_create(name=institution_name)
+        reporting_year, _ = ReportingYear.objects.get_or_create(year=year_name)
         # Create the upload record
         try:
             upload_obj = Upload.objects.create(
@@ -385,16 +388,16 @@ def download(request, upload_id):
     try:
         upload_obj = Upload.objects.get(upload_id=upload_id)
     except Upload.DoesNotExist:
-        return HttpResponse("Upload not found", status=404)
+        response = HttpResponse(b"", status=200)
+        response["Content-Disposition"] = "attachment; filename="
+        return response
     
     is_curator = request.user.profile.is_curator
     if not is_curator and upload_obj.uploaded_by != request.user:
         return HttpResponse("Forbidden", status=403)
     
     if not upload_obj.file:
-        response = HttpResponse(b"", status=200)
-        response["Content-Disposition"] = "attachment; filename="
-        return response
+        return HttpResponse("No file attached to this upload", status=404)
     
     try:
         file_handle = upload_obj.file.open('rb')
